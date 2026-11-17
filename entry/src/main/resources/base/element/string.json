@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "SillyTavern HarmonyOS shell"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "SillyTavern"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "SillyTavern"
+    },
+    {
+      "name": "reason_camera",
+      "value": "网页需要使用摄像头时，由您确认后授权。"
+    },
+    {
+      "name": "reason_microphone",
+      "value": "网页需要使用麦克风时，由您确认后授权。"
+    },
+    {
+      "name": "reason_location",
+      "value": "网页需要使用位置信息时，由您确认后授权。"
+    }
+  ]
+}
