@@ -1,0 +1,104 @@
+name: Build HarmonyOS 7 HAP (API 26)
+
+on:
+  # 每次推送 main/master 都自动构建
+  push:
+    branches: [main, master]
+  # 方便验证合并前的代码
+  pull_request:
+    branches: [main, master]
+  # GitHub Actions 页面也可以手动执行
+  workflow_dispatch:
+    inputs:
+      build_mode:
+        description: Build mode (unsigned HAP)
+        required: true
+        default: debug
+        type: choice
+        options:
+          - debug
+          - release
+
+permissions:
+  contents: read
+
+jobs:
+  build-hap:
+    name: Build ${{ inputs.build_mode || 'debug' }} HAP
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      BUILD_MODE: ${{ inputs.build_mode || 'debug' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate GitHub-ready project
+        run: python3 tools/ci/validate_project.py
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev
+
+      # 官方推荐 Command Line Tools 26.0.0+ 使用 JDK 21
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # 使用已公开的 HarmonyOS API 26 Linux 命令行工具镜像
+      - name: Set up HarmonyOS CLI 26.0.0.821
+        uses: ErBWs/setup-ohos@v2
+        with:
+          version: 26.0.0.821
+          cache: true
+
+      - name: Check build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version
+          node --version
+          command -v hvigorw
+          command -v ohpm
+          hvigorw -v
+          ohpm -v
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm config set registry https://repo.huaweicloud.com/repository/npm/
+          npm config set '@ohos:registry' https://repo.harmonyos.com/npm/
+          ohpm config set registry https://ohpm.openharmony.cn/ohpm/
+          ohpm install --all
+          (cd entry && ohpm install --all)
+
+      - name: Clean and build HAP
+        shell: bash
+        run: |
+          set -euo pipefail
+          hvigorw clean --no-daemon
+          hvigorw assembleHap \
+            --mode module \
+            -p product=default \
+            -p buildMode="${BUILD_MODE}" \
+            --no-daemon
+
+      - name: List generated HAP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          find entry/build -type f -name '*.hap' -print
+          test -n "$(find entry/build -type f -name '*.hap' -print -quit)"
+
+      - name: Upload HAP to GitHub Actions Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: SillyTavern-HarmonyOS7-API26-${{ env.BUILD_MODE }}-${{ github.run_number }}
+          path: entry/build/**/*.hap
+          if-no-files-found: error
+          retention-days: 30
